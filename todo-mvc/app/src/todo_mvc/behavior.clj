@@ -64,7 +64,10 @@
 
 ;; Combines =======================================================================
 
-(defn completed [state input old new]
+(defn all [_ _ _ new]
+  (filter identity new))
+
+(defn completed [_ _ _ new]
   (filter (fn [[_ {current-status :status}]] (= current-status "completed")) new))
 
 (defn active [_ _ _ new]
@@ -108,7 +111,7 @@
   (let [value (-> input changed-input :new)]
     [[:attr [:todo] :everything-completed? value]]))
 
-(defmethod emit-dispatch :todo [input changed-input]
+(defmethod emit-dispatch :apply-view [input changed-input]
   (let [old-state (-> input changed-input :old)
         new-state (-> input changed-input :new)
         removed (set/difference (set old-state) (set new-state))
@@ -132,7 +135,9 @@
   [{:todo {:transforms {:add-todo [{msg/topic :todo (msg/param :content) {}}]}}
     :count {:number {}
             :text {}}
-    :filters {}}])
+    :filters {:transforms {:view-all       [{msg/topic :choose-view msg/type :all}]
+                           :view-active    [{msg/topic :choose-view msg/type :active}]
+                           :view-completed [{msg/topic :choose-view msg/type :completed}]}}}])
 
 (defn treeify
   ([inputs] initial-tree)
@@ -143,13 +148,30 @@
                (emit-dispatch inputs changed-input))
              changed-inputs)))
 
+(def chosen-view (atom :all))
+
+(defn choose-view [state event]
+  (swap! chosen-view (constantly (msg/type event))))
+
+(defn apply-view [state input old new]
+  "Wraps the todo transform and filters its contents through the currently-chosen view."
+  (let [new-state (get-in input [:todo :new])
+        ; The default to 'all' is necessary due to the incorrect init state.
+        ; What's better?
+        view-fn (get {:all all :active active :completed completed} @chosen-view all)]
+    (view-fn _ _ _ new-state)))
+
 ;; App Dataflow
 (def todo-app
-  {:transform  {:todo         {:init {} :fn todo-model}}
-   :combine    {:completed    {:input #{:todo} :fn completed}
+  {:transform  {:todo         {:init {} :fn todo-model}
+                :choose-view  {:init {} :fn choose-view}}
+
+   :combine    {:apply-view   {:input #{:todo :choose-view} :fn apply-view}
+                :completed    {:input #{:todo} :fn completed}
                 :completed-count {:input #{:completed} :fn count-todos}
                 :active       {:input #{:todo} :fn active}
                 :active-count {:input #{:active} :fn count-todos}
                 :items-left   {:input #{:active-count} :fn items-left-pluralized}
                 :everything-completed? {:input #{:active-count :completed-count} :fn everything-completed?}}
-   :emit       {:all          {:input #{:everything-completed? :items-left :todo :completed-count} :fn treeify}}})
+
+   :emit       {:all          {:input #{:everything-completed? :items-left :apply-view :completed-count} :fn treeify}}})
