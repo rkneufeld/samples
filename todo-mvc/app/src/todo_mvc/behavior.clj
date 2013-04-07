@@ -64,14 +64,20 @@
 
 ;; Combines =======================================================================
 
-(defn all [_ _ _ new]
+(defn all [new]
   (filter identity new))
 
-(defn completed [_ _ _ new]
-  (filter (fn [[_ {current-status :status}]] (= current-status "completed")) new))
+(defn completed
+  ([_ _ _ new]
+     (completed new))
+  ([new]
+     (filter (fn [[_ {current-status :status}]] (= current-status "completed")) new)))
 
-(defn active [_ _ _ new]
-  (filter (fn [[_ {current-status :status}]] (= current-status "uncompleted")) new)) 
+(defn active
+  ([new]
+     (filter (fn [[_ {current-status :status}]] (= current-status "uncompleted")) new))
+  ([_ _ _ new]
+      (active new)))
 
 (defn count-todos [state input old new]
   (count new))
@@ -159,7 +165,7 @@
         ; The default to 'all' is necessary due to the incorrect init state.
         ; What's better?
         view-fn (get {:all all :active active :completed completed} @chosen-view all)]
-    (view-fn _ _ _ new-state)))
+    (view-fn new-state)))
 
 ;; App Dataflow
 (def todo-app
