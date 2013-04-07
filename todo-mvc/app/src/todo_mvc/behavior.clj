@@ -64,8 +64,7 @@
 
 ;; Combines =======================================================================
 
-(defn all [new]
-  (filter identity new))
+(defn all [new] new)
 
 (defn completed
   ([_ _ _ new]
