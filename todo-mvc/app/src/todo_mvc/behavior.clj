@@ -74,10 +74,10 @@
      (filter (fn [[_ {current-status :status}]] (= current-status "completed")) new)))
 
 (defn active
-  ([new]
-     (filter (fn [[_ {current-status :status}]] (= current-status "uncompleted")) new))
   ([_ _ _ new]
-      (active new)))
+     (active new))
+  ([new]
+     (filter (fn [[_ {current-status :status}]] (= current-status "uncompleted")) new)))
 
 (defn count-todos [state input old new]
   (count new))
