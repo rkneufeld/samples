@@ -41,8 +41,22 @@
       (update-in [(:uuid event) :status] toggle-complete)
       (update-in [(:uuid event) :completed?] not )))
 
-(defmethod process-todo-message :complete-all [state event]
-  (into {} (map (fn [[id todo]] [id (assoc todo :completed (platform/date))]) state)))
+(defn mark-complete [todo]
+  (-> todo
+      (update-in [:status] (constantly "completed"))
+      (update-in [:completed?] (constantly true))))
+
+(defn mark-active [todo]
+  (-> todo
+      (update-in [:status] (constantly "uncompleted"))
+      (update-in [:completed?] (constantly false))))
+
+(defmethod process-todo-message :toggle-all [state event]
+  (let [marker-fn
+        (if (some (fn [[id {status :status}]] (= "uncompleted" status)) state)
+          mark-complete
+          mark-active)]
+    (into {} (map (fn [[id todo]] [id (marker-fn todo)]) state))))
 
 (def todo-messages
   #{:add-todo
@@ -142,7 +156,8 @@
             :text {}}
     :filters {:transforms {:view-all       [{msg/topic :choose-view msg/type :all}]
                            :view-active    [{msg/topic :choose-view msg/type :active}]
-                           :view-completed [{msg/topic :choose-view msg/type :completed}]}}}])
+                           :view-completed [{msg/topic :choose-view msg/type :completed}]}}
+    :toggle-all {:transforms {:toggle-all [{msg/topic :todo msg/type :toggle-all}]}}}])
 
 (defn treeify
   ([inputs] initial-tree)
