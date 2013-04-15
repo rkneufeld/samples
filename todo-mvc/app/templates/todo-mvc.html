@@ -38,13 +38,13 @@
 			    <!-- Remove this if you don't implement routing -->
                             <ul id="filters" template="filters">
                              <li>
-                               <a class="selected" href="#/">All</a>
+                               <a id="all" class="selected" href="#/">All</a>
                              </li>
                              <li>
-                               <a href="#/active" field="value:value">Active</a>
+                               <a id="active" href="#/active">Active</a>
                              </li>
                              <li>
-                               <a href="#/completed">Completed</a>
+                               <a id="completed" href="#/completed">Completed</a>
                              </li>
                             </ul>
 			    <button id="clear-completed" template="clear-completed">Clear completed (<span field="content:number"></span>)</button>

@@ -1,4 +1,4 @@
-; Copyright 2013 Relevance, Inc.
+0;95;c; Copyright 2013 Relevance, Inc.
 
 ; The use and distribution terms for this software are covered by the
 ; Eclipse Public License 1.0 (http://opensource.org/licenses/eclipse-1.0)
@@ -15,8 +15,8 @@
   :license {:name "Eclipse Public License"
             :url "http://www.eclipse.org/legal/epl-v10.html"}
   :dependencies [[org.clojure/clojure "1.5.0"]
-                 [io.pedestal/pedestal.service "0.1.0"]
-                 [io.pedestal/pedestal.jetty "0.1.0"]
+                 [io.pedestal/pedestal.service "0.1.2"]
+                 [io.pedestal/pedestal.jetty "0.1.2"]
                  [org.slf4j/jul-to-slf4j "1.7.2"]
                  [org.slf4j/jcl-over-slf4j "1.7.2"]
                  [org.slf4j/log4j-over-slf4j "1.7.2"]
