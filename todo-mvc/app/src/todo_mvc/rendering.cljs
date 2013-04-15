@@ -54,6 +54,25 @@
      (doseq [msg messages]
        (p/put-message transmitter msg)))))
 
+(defn classify-element [new-selected]
+  (dom/remove-class! (dom-xpath/xpath "//ul[@id='filters']/li/a") "selected")
+  (dom/set-classes! (dom/by-id new-selected) "selected"))
+
+(defn filter-handler [transform-name original-messages transmitter]
+  (fn [e]
+    (classify-element (-> e .-evt .-target .-id))
+    (let [messages (msg/fill transform-name original-messages)]
+      (doseq [msg messages]
+        (p/put-message transmitter msg)))))
+
+(defn enable-filter-transforms [renderer [_ path transform msgs] transmitter]
+  (let [handler-fn (filter-handler transform msgs transmitter)]
+    (condp = transform
+      :view-all       (dom-events/listen! (dom/by-id "all")       :click handler-fn)
+      :view-active    (dom-events/listen! (dom/by-id "active")    :click handler-fn)
+      :view-completed (dom-events/listen! (dom/by-id "completed") :click handler-fn)
+      (log/error :in :enable-filter-transforms :unmatched transform))))
+
 (defn create-todo-item [renderer [event path old new] transmitter]
   ;; At the moment this ID attachs to the first child of our todo li,
   ;; on account of a limitation whereby you cannot set both another
@@ -105,7 +124,7 @@
 
 (defn create-filter [r [_ path _]]
   (let [html (t/add-template r path (:filters templates))]
-    (dom/prepend! (dom/by-id "footer") (html {:active "all"})))) ;; TODO: implement view for active
+    (dom/prepend! (dom/by-id "footer") (html {:active "all"})))) ;; TODO: Use proper init value from behavior.
 
 (defn update-count [r [event path _ new]]
   (let [key (last path)
@@ -131,6 +150,7 @@
    [:node-create      [:count] create-count]
    [:value            [:count :*] update-count]
    [:node-create      [:filters] create-filter]
+   [:transform-enable [:filters] enable-filter-transforms]
    [:node-create      [:clear-completed] create-clear-completed]
    [:node-destroy     [:clear-completed] destroy-clear-completed]
    [:value            [:clear-completed :*] update-count]])

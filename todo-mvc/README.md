@@ -25,3 +25,6 @@
 * Double clicking a todo's label begins editing that todo.
 * [X] Clear completed button shows the number of todos
 * [X] Clear completed button hides when there are no todos
+* Filter links show a sub-set of todos when clicked.
+* [X] Each filter link shows the appropriate set of TODOs.
+* [X] Each filter link adopts the 'selected' class.
