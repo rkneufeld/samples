@@ -2,6 +2,7 @@
   (:require [domina :as dom]
             [domina.xpath :as dom-xpath]
             [domina.events :as dom-events]
+            [domina.css :as css]
             [io.pedestal.app.protocols :as p]
             [io.pedestal.app.render.push :as render]
             [io.pedestal.app.render.push.templates :as t]
@@ -73,15 +74,39 @@
       :view-completed (dom-events/listen! (dom/by-id "completed") :click handler-fn)
       (log/error :in :enable-filter-transforms :unmatched transform))))
 
+(defn id->int [id]
+  (->> id
+       (re-find #"[0-9]+")
+       js/parseInt))
+
+(defn all-todo-ids []
+  (let [nodes (dom/nodes (css/sel "#todo-list div.view"))
+        node->id (comp :id dom/attrs)]
+    (map node->id nodes)))
+
+(defn get-prependable-id [todo-id]
+  (let [int-id-map (into {} (map (fn [x] [(id->int x) x]) (all-todo-ids)))
+        ints       (sort (keys int-id-map))
+        matchable-int    (id->int todo-id)
+        next-highest-int (first (drop-while #(< % matchable-int) ints))
+        prependable-id   (int-id-map next-highest-int)]
+    prependable-id))
+
+(defn get-insertion-fn [todo-id]
+  (if-let [prependable-id (get-prependable-id todo-id)]
+    (partial dom/insert-before! (.-parentNode (dom/by-id prependable-id)))
+    (partial dom/append!        (dom/by-id "todo-list"))))
+
 (defn create-todo-item [renderer [event path old new] transmitter]
   ;; At the moment this ID attachs to the first child of our todo li,
   ;; on account of a limitation whereby you cannot set both another
   ;; field AND id on a template.
   (when new
-    (let [id (render/new-id! renderer path)
+    (let [id (render/new-id! renderer path (:uuid new))
+          insertion-fn (get-insertion-fn id)
           html (t/add-template renderer path (:todo-item templates))
           todo-map (assoc new :id id)]
-      (dom/append! (dom/by-id "todo-list") (html todo-map))
+      (insertion-fn (html todo-map))
       (if (:completed? todo-map)
         (let [checkbox-sel (str "//*[@id='" id "']//input[@type='checkbox']")
               checkbox (dom-xpath/xpath checkbox-sel)]
