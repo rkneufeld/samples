@@ -9,6 +9,7 @@
             [io.pedestal.app.render.push.handlers.automatic :as d]
             [io.pedestal.app.messages :as msg]
             [io.pedestal.app.util.log :as log])
+  (:use [clojure.string :only [trim]])
   (:require-macros [todo-mvc.html-templates :as html-templates]))
 
 (def templates (html-templates/todo-mvc-templates))
@@ -19,6 +20,7 @@
     (dom/append! (dom/by-id parent) (html {}))))
 
 (def ^:private enter-key 13)
+(def ^:private escape-key 27)
 (declare add-todo-handler)
 (defn enable-todo-transforms [renderer [_ path transform msgs] transmitter]
   (condp = transform
@@ -112,17 +114,75 @@
               checkbox (dom-xpath/xpath checkbox-sel)]
           (dom/set-attr! checkbox "checked" "checked"))))))
 
-(def event-to-class
-  {:toggle-complete "toggle"
-   :delete-todo "destroy"})
+(defn get-parent-id [el]
+  (-> el .-parentNode dom/attrs :id))
+
+(defn get-nearest-editable [el]
+  (let [parent-id (get-parent-id el)
+        sel       (str "//*[@id='" parent-id "']//*[@class='editable']")
+        editable  (dom-xpath/xpath sel)]
+    editable))
+
+(defn reset-input [input]
+  (let [container (-> input .-parentNode)
+        editable  (get-nearest-editable input)]
+    (dom-events/unlisten! input)
+    (dom/set-value! input (dom/html editable))
+    (dom/remove-class! container "editing")))
+
+(defn persist-input [input transform-name original-messages transmitter]
+  (let [parent-id (get-parent-id input)
+        todo-el   (dom-xpath/xpath (str "//*[@id='" parent-id "']//*[@class='view']"))
+        uuid      (-> todo-el dom/attrs :id)
+        content   (dom/value input)]
+    (if (seq (trim content))
+      (doseq [msg (msg/fill transform-name original-messages {:uuid uuid :content content})]
+        (p/put-message transmitter msg))
+      (reset-input input))))
+
+(defn enter-or-blur-event? [e]
+  (or (= (:keyCode e) enter-key)
+      (= (dom-events/event-type e) "blur")))
+
+(defn escape-key-event? [e]
+  (= (:keyCode e) escape-key))
+
+(defn edit-todo-handler [transform-name original-messages transmitter]
+  (fn [e]
+    (let [input  (dom-events/target e)]
+      (cond
+       (enter-or-blur-event? e) (persist-input input transform-name original-messages transmitter)
+       (escape-key-event? e)    (reset-input input)))))
+
+(defn editing-todo-handler [transform-name original-messages transmitter]
+  (fn [e]
+    (let [ container-id    (-> e dom-events/target .-parentNode .-parentNode dom/attrs :id)
+          input        (dom-xpath/xpath  (str "//*[@id='" container-id "']//input[@class='edit']"))
+          edit-handler (edit-todo-handler transform-name original-messages transmitter)
+          blur-handler (fn [e] (dom/remove-class! (dom/by-id container-id) "editing"))]
+      (dom/add-class! (dom/by-id container-id) "editing")
+      (.focus (dom/single-node input))
+
+      (dom-events/listen! input :keydown edit-handler)
+      (dom-events/listen! input :blur    edit-handler))))
+
+(def event-listeners
+  {:toggle-complete {:class "toggle"   :action :click}
+   :delete-todo     {:class "destroy"  :action :click}
+   :edit-todo       {:class "editable" :action :dblclick :handler editing-todo-handler}})
 
 (defn create-todo-item-event [renderer [_ path event msgs] transmitter]
   (let [id (render/get-id renderer path)]
     (doseq [msg msgs]
-      (let [toggle-selector (str "//*[@id='" id "']//*[@class='" (event-to-class event) "']")]
+      (let [toggle-action   (get-in event-listeners [event :action])
+            toggle-selector (str "//*[@id='" id "']//*[@class='" (get-in event-listeners [event :class]) "']")
+            toggle-handler  (get-in event-listeners [event :handler])
+            toggle-handler  (if (nil? toggle-handler)
+                              (fn [_] (p/put-message transmitter msg))
+                              (toggle-handler event msgs transmitter))]
         (dom-events/listen! (dom-xpath/xpath toggle-selector)
-                            :click
-                            (fn [_] (p/put-message transmitter msg)))))))
+                            toggle-action
+                            toggle-handler)))))
 
 (defn disable-clear-completed-event [renderer [_ path event msgs] transmitter]
   (let [selector (str "//*[@id='clear-completed']")]

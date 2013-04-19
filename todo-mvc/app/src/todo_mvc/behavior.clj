@@ -22,6 +22,12 @@
       (assoc state (:uuid new-todo) new-todo)
       state)))
 
+(defmethod process-todo-message :edit-todo [state event]
+  (let [new-content (:content event)]
+    (if (seq new-content)
+      (update-in state [(:uuid event) :content] (constantly new-content))
+      state)))
+
 (defmethod process-todo-message :delete-todo [state event]
   (dissoc state (:uuid event)))
 
@@ -60,6 +66,7 @@
 
 (def todo-messages
   #{:add-todo
+    :edit-todo
     :delete-todo
     :clear-completed
     :set-content
@@ -142,7 +149,8 @@
      (map (fn [[uuid todo]]
             {:todo {uuid {:value todo
                           :transforms {:toggle-complete [{msg/topic :todo msg/type :toggle-complete :uuid uuid}]
-                                       :delete-todo     [{msg/topic :todo msg/type :delete-todo :uuid uuid}]}}}})
+                                       :delete-todo     [{msg/topic :todo msg/type :delete-todo :uuid uuid}]
+                                       :edit-todo       [{msg/topic :todo msg/type :edit-todo :uuid uuid (msg/param :content) {}}]}}}})
           added))))
 
 ;; Events
