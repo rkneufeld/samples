@@ -130,7 +130,7 @@
     (dom/set-value! input (dom/html editable))
     (dom/remove-class! container "editing")))
 
-(defn persist-input [input transform-name original-messages transmitter]
+(defn persist-content [input transform-name original-messages transmitter]
   (let [parent-id (get-parent-id input)
         todo-el   (dom-xpath/xpath (str "//*[@id='" parent-id "']//*[@class='view']"))
         uuid      (-> todo-el dom/attrs :id)
@@ -149,20 +149,19 @@
 
 (defn edit-todo-handler [transform-name original-messages transmitter]
   (fn [e]
-    (let [input  (dom-events/target e)]
+    (let [input (dom-events/target e)]
       (cond
-       (enter-or-blur-event? e) (persist-input input transform-name original-messages transmitter)
+       (enter-or-blur-event? e) (persist-content input transform-name original-messages transmitter)
        (escape-key-event? e)    (reset-input input)))))
 
 (defn editing-todo-handler [transform-name original-messages transmitter]
   (fn [e]
-    (let [ container-id    (-> e dom-events/target .-parentNode .-parentNode dom/attrs :id)
+    (let [container-id (-> e dom-events/target .-parentNode .-parentNode dom/attrs :id)
           input        (dom-xpath/xpath  (str "//*[@id='" container-id "']//input[@class='edit']"))
           edit-handler (edit-todo-handler transform-name original-messages transmitter)
           blur-handler (fn [e] (dom/remove-class! (dom/by-id container-id) "editing"))]
       (dom/add-class! (dom/by-id container-id) "editing")
       (.focus (dom/single-node input))
-
       (dom-events/listen! input :keydown edit-handler)
       (dom-events/listen! input :blur    edit-handler))))
 
