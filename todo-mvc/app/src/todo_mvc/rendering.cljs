@@ -9,7 +9,6 @@
             [io.pedestal.app.render.push.handlers.automatic :as d]
             [io.pedestal.app.messages :as msg]
             [io.pedestal.app.util.log :as log])
-  (:use [clojure.string :only [trim]])
   (:require-macros [todo-mvc.html-templates :as html-templates]))
 
 (def templates (html-templates/todo-mvc-templates))
@@ -135,10 +134,8 @@
         todo-el   (dom-xpath/xpath (str "//*[@id='" parent-id "']//*[@class='view']"))
         uuid      (-> todo-el dom/attrs :id)
         content   (dom/value input)]
-    (if (seq (trim content))
-      (doseq [msg (msg/fill transform-name original-messages {:uuid uuid :content content})]
-        (p/put-message transmitter msg))
-      (reset-input input))))
+    (doseq [msg (msg/fill transform-name original-messages {:uuid uuid :content content})]
+      (p/put-message transmitter msg))))
 
 (defn enter-or-blur-event? [e]
   (or (= (:keyCode e) enter-key)

@@ -3,7 +3,8 @@
               [clojure.set :as set]
               [io.pedestal.app.util.log :as log]
               [io.pedestal.app.util.platform :as platform]
-              [io.pedestal.app.messages :as msg]))
+              [io.pedestal.app.messages :as msg])
+    (:use [clojure.string :only [trim]]))
 
 ;; Model =======================================================================
 (defmulti process-todo-message (fn [_ event] (msg/type event)))
@@ -23,10 +24,10 @@
       state)))
 
 (defmethod process-todo-message :edit-todo [state event]
-  (let [new-content (:content event)]
+  (let [new-content (-> event :content trim)]
     (if (seq new-content)
       (update-in state [(:uuid event) :content] (constantly new-content))
-      state)))
+      (process-todo-message state (update-in event [msg/type] (constantly :delete-todo)) ))))
 
 (defmethod process-todo-message :delete-todo [state event]
   (dissoc state (:uuid event)))
