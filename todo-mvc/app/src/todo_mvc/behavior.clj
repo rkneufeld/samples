@@ -3,7 +3,8 @@
               [clojure.set :as set]
               [io.pedestal.app.util.log :as log]
               [io.pedestal.app.util.platform :as platform]
-              [io.pedestal.app.messages :as msg]))
+              [io.pedestal.app.messages :as msg])
+    (:use [clojure.string :only [trim]]))
 
 ;; Model =======================================================================
 (defmulti process-todo-message (fn [_ event] (msg/type event)))
@@ -21,6 +22,12 @@
     (if (seq (:content new-todo))
       (assoc state (:uuid new-todo) new-todo)
       state)))
+
+(defmethod process-todo-message :edit-todo [state event]
+  (let [new-content (-> event :content trim)]
+    (if (seq new-content)
+      (update-in state [(:uuid event) :content] (constantly new-content))
+      (process-todo-message state (update-in event [msg/type] (constantly :delete-todo)) ))))
 
 (defmethod process-todo-message :delete-todo [state event]
   (dissoc state (:uuid event)))
@@ -60,6 +67,7 @@
 
 (def todo-messages
   #{:add-todo
+    :edit-todo
     :delete-todo
     :clear-completed
     :set-content
@@ -142,7 +150,8 @@
      (map (fn [[uuid todo]]
             {:todo {uuid {:value todo
                           :transforms {:toggle-complete [{msg/topic :todo msg/type :toggle-complete :uuid uuid}]
-                                       :delete-todo     [{msg/topic :todo msg/type :delete-todo :uuid uuid}]}}}})
+                                       :delete-todo     [{msg/topic :todo msg/type :delete-todo :uuid uuid}]
+                                       :edit-todo       [{msg/topic :todo msg/type :edit-todo :uuid uuid (msg/param :content) {}}]}}}})
           added))))
 
 ;; Events
