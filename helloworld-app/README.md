@@ -5,7 +5,7 @@ You may start the application by running the following commands:
 ```
 lein repl
 (dev)
-(run)
+(start)
 ```
 
 Once it is started, browse to [http://localhost:3000/helloworld-app-dev.html](http://localhost:3000/helloworld-app-dev.html).
